@@ -2,27 +2,37 @@
 
 document.addEventListener('DOMContentLoaded', () => {
     const plotContainer = d3.select('#plot-container');
-    const width = plotContainer.node().clientWidth;
-    const initialHeight = 400;
-    const MIN_PLOT_HEIGHT = 400;
+    
+    // --- Fixed Dimensions ---
+    // Set a fixed width and height for the plot area.
+    const width = 700; // Fixed width for 30 units + padding
+    const height = 310; // Fixed height for 12 stacks + axes
     const MAX_STACK_CAP = 12; // Cap the maximum stack height
+    const X_DOMAIN = [0, 30]; // Fixed x-axis from 0 to 30
 
     const svg = plotContainer.append('svg')
         .attr('width', width)
-        .attr('height', 310); // Fixed height for 12 cubes stack
+        .attr('height', height);
 
+    // --- Constants ---
     const CUBE_SIZE = 20;
     const CUBE_RADIUS = 4;
     const DOT_RADIUS = 5;
-    const X_DOMAIN = [0, 30]; // Fixed x-axis length of 30 units
+    const PADDING_TOP = 30;
+    const PADDING_BOTTOM = 40;
 
+    // --- Scales ---
     const xScale = d3.scaleBand()
         .domain(d3.range(X_DOMAIN[0], X_DOMAIN[1]))
-        .range([50, 650]) // Adjusted range for fixed width
+        .range([50, width - 50])
         .padding(0);
+    
+    // Y-scale now has a fixed domain based on the max stack cap.
+    const yScale = d3.scaleLinear()
+        .domain([1, MAX_STACK_CAP])
+        .range([(height - PADDING_BOTTOM) - (0.5 * CUBE_SIZE), PADDING_TOP + (0.5 * CUBE_SIZE)]);
 
-    const yScale = d3.scaleLinear(); // A simple linear scale for the axis
-
+    // --- State Variables ---
     let currentMeanA = Math.floor(X_DOMAIN[1] * 0.25);
     let currentSpreadA = 3;
     let currentMeanB = Math.floor(X_DOMAIN[1] * 0.75);
@@ -30,6 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentThreshold = Math.floor(X_DOMAIN[1] * 0.5);
     let allData = [];
 
+    // --- Data Generation ---
     function generateClassData(mean, stdDev, count, className) {
         const data = [];
         for (let i = 0; i < count; i++) {
@@ -44,64 +55,48 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
+    // Positions cubes and filters out any that exceed the MAX_STACK_CAP
     function positionCubes(data) {
         const valueCounts = {};
-        const positioned = [];
-        data.forEach(d => {
+        const positioned = data.map(d => {
             const value = d.value;
             if (!valueCounts[value]) {
                 valueCounts[value] = 0;
             }
-            if (valueCounts[value] < MAX_STACK_CAP) { // Only add if stack is not full
-                const stackIndex = valueCounts[value];
-                valueCounts[value]++;
-                positioned.push({ ...d, x: xScale(value), y: stackIndex });
-            }
+            const stackIndex = valueCounts[value];
+            valueCounts[value]++;
+            return { ...d, x: xScale(value), y: stackIndex };
         });
-        return positioned;
+        
+        // Filter out cubes that are taller than the cap
+        return positioned.filter(d => d.y < MAX_STACK_CAP);
     }
 
+    // --- Region and Axes ---
     const blueRegion = svg.append('rect').attr('id', 'blue-region').attr('fill', 'var(--color-class-a)').attr('fill-opacity', 0.2);
     const redRegion = svg.append('rect').attr('id', 'red-region').attr('fill', 'var(--color-class-b)').attr('fill-opacity', 0.2);
 
     function updateClassificationRegions() {
-        const currentSvgHeight = svg.attr('height');
-        const currentSvgWidth = svg.attr('width');
         const thresholdX = xScale(currentThreshold) - xScale.padding() * xScale.step() / 2;
-        blueRegion.attr('x', 0).attr('y', 0).attr('width', thresholdX).attr('height', currentSvgHeight - 30);
-        redRegion.attr('x', thresholdX).attr('y', 0).attr('width', currentSvgWidth - thresholdX).attr('height', currentSvgHeight - 30);
+        blueRegion.attr('x', 0).attr('y', 0).attr('width', thresholdX).attr('height', height - PADDING_BOTTOM + 10);
+        redRegion.attr('x', thresholdX).attr('y', 0).attr('width', width - thresholdX).attr('height', height - PADDING_BOTTOM + 10);
     }
 
-    const xAxisGroup = svg.append('g').attr('class', 'x-axis');
-    const yAxisGroup = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(40, 0)`);
+    const xAxisGroup = svg.append('g').attr('class', 'x-axis')
+        .attr('transform', `translate(0, ${height - 30})`);
+    const yAxisGroup = svg.append('g').attr('class', 'y-axis')
+        .attr('transform', `translate(40, 0)`);
+    
+    const xAxis = d3.axisBottom(xScale);
+    xAxisGroup.call(xAxis);
 
-    function updateXAxis() {
-        const currentSvgHeight = svg.attr('height');
-        xAxisGroup.attr('transform', `translate(0, ${currentSvgHeight - 30})`);
-        const xAxis = d3.axisBottom(xScale);
-        xAxisGroup.call(xAxis);
-    }
+    const yAxis = d3.axisLeft(yScale).ticks(MAX_STACK_CAP).tickFormat(d3.format('d'));
+    yAxisGroup.call(yAxis);
+    yAxisGroup.select(".domain").remove();
 
-    function updateYAxis(maxStack) {
-        const yAxis = d3.axisLeft(yScale).ticks(maxStack).tickFormat(d3.format('d'));
-        yAxisGroup.call(yAxis);
-        yAxisGroup.select(".domain").remove();
-    }
 
+    // --- Rendering ---
     function renderCubes(data) {
-        let maxStack = d3.max(Array.from(d3.rollup(data, v => v.length, d => d.value).values())) || 1;
-        maxStack = Math.min(maxStack, MAX_STACK_CAP); // Cap the max stack height
-
-        const paddingTop = 30;
-        const paddingBottom = 40;
-        const newHeight = 310; // Fixed height
-
-        // Define the y-axis scale to perfectly center the labels
-        yScale.domain([1, maxStack])
-              .range([(newHeight - paddingBottom) - (0.5 * CUBE_SIZE), (newHeight - paddingBottom) - (maxStack - 0.5) * CUBE_SIZE]);
-
-        updateYAxis(maxStack);
-        updateXAxis();
         updateClassificationRegions();
 
         const cubeGroups = svg.selectAll('.cube-group').data(data, d => d.id);
@@ -114,10 +109,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const mergedGroups = enterGroups.merge(cubeGroups);
 
-        // Manually calculate y-position for perfect stacking, no gaps
         mergedGroups.transition().duration(500).delay((d, i) => i * 5)
             .attr('transform', d => {
-                const yPos = (newHeight - paddingBottom) - (d.y + 1) * CUBE_SIZE;
+                const yPos = (height - PADDING_BOTTOM) - (d.y + 1) * CUBE_SIZE;
                 return `translate(${d.x}, ${yPos})`;
             });
 
@@ -125,6 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mergedGroups.classed('misclassified', d => (d.class === 'A' && d.value >= currentThreshold) || (d.class === 'B' && d.value < currentThreshold));
     }
 
+    // --- Scoreboard ---
     const accuracyScoreSpan = document.getElementById('accuracy-score');
     const tpScoreSpan = document.getElementById('tp-score');
     const fpScoreSpan = document.getElementById('fp-score');
@@ -154,7 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
         accuracyScoreSpan.textContent = `${metrics.accuracy}%`;
     }
 
-    const thresholdLine = svg.append('line').attr('class', 'threshold-line').attr('y1', 30).attr('y2', 280);
+    // --- Interactivity ---
+    const thresholdLine = svg.append('line').attr('class', 'threshold-line').attr('y1', PADDING_TOP).attr('y2', height - 30);
 
     const drag = d3.drag().on('drag', (event) => {
         const newX = event.x;
@@ -174,25 +170,29 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function updateFeedback() {
-        const metrics = calculateMetrics(allData, currentThreshold);
+        // We use allData for metrics, so it reflects the original distribution
+        const metrics = calculateMetrics(allData, currentThreshold); 
         updateScoreboardDisplay(metrics);
         svg.selectAll('.cube-group').classed('misclassified', d => (d.class === 'A' && d.value >= currentThreshold) || (d.class === 'B' && d.value < currentThreshold));
     }
-
+    
+    // --- Main Update Function ---
     function updatePlot() {
         let classAData = generateClassData(currentMeanA, currentSpreadA, 50, 'A');
         let classBData = generateClassData(currentMeanB, currentSpreadB, 50, 'B');
-        allData = [...classAData, ...classBData];
-        const positionedData = positionCubes(allData);
+        allData = [...classAData, ...classBData]; // Store original data for metrics
+        
+        const positionedData = positionCubes(allData); // Get filtered, positioned data for rendering
         renderCubes(positionedData);
         updateThresholdLine();
         updateFeedback();
-        updateClassificationRegions();
     }
 
+    // --- Event Listeners ---
     const meanASlider = document.getElementById('meanA');
     meanASlider.max = X_DOMAIN[1] - 1;
     meanASlider.value = currentMeanA;
+    document.getElementById('meanA-value').textContent = currentMeanA;
     meanASlider.addEventListener('input', (e) => {
         currentMeanA = +e.target.value;
         document.getElementById('meanA-value').textContent = currentMeanA;
@@ -200,6 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const spreadASlider = document.getElementById('spreadA');
+    spreadASlider.value = currentSpreadA;
+    document.getElementById('spreadA-value').textContent = currentSpreadA;
     spreadASlider.addEventListener('input', (e) => {
         currentSpreadA = +e.target.value;
         document.getElementById('spreadA-value').textContent = currentSpreadA;
@@ -209,6 +211,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const meanBSlider = document.getElementById('meanB');
     meanBSlider.max = X_DOMAIN[1] - 1;
     meanBSlider.value = currentMeanB;
+    document.getElementById('meanB-value').textContent = currentMeanB;
     meanBSlider.addEventListener('input', (e) => {
         currentMeanB = +e.target.value;
         document.getElementById('meanB-value').textContent = currentMeanB;
@@ -216,11 +219,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     const spreadBSlider = document.getElementById('spreadB');
+    spreadBSlider.value = currentSpreadB;
+    document.getElementById('spreadB-value').textContent = currentSpreadB;
     spreadBSlider.addEventListener('input', (e) => {
         currentSpreadB = +e.target.value;
         document.getElementById('spreadB-value').textContent = currentSpreadB;
         updatePlot();
     });
-
+    
+    // --- Initial Load ---
     updatePlot();
 });
