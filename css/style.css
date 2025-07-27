@@ -5,16 +5,19 @@
     box-sizing: border-box;
 }
 
+/* Color Palette and Variables */
 :root {
-    --color-class-a: #A7D9F7; /* Pastel Blue */
-    --color-class-b: #F7A7A7; /* Pastel Red */
-    --color-threshold: #7FFF00; /* Bright Green */
+    --color-class-a: #82a9d1; /* Pastel Blue */
+    --color-class-b: #ff8b8b; /* Pastel Red */
+    --color-threshold: #82d19a; /* Pastel Green */
     --color-text-light: #ecf0f1;
     --color-background-dark: #2c3e50;
+    --color-container-bg: rgba(255, 255, 255, 0.05);
+    --color-container-border: rgba(255, 255, 255, 0.1);
 }
 
 body {
-    font-family: sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--color-background-dark);
     color: var(--color-text-light);
     text-align: center;
@@ -23,78 +26,136 @@ body {
     line-height: 1.6;
 }
 
-header {
-    padding: 20px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+header h1 {
+    font-size: 2.5em;
     margin-bottom: 20px;
 }
 
-header h1 {
-    font-size: 2.5em;
-    color: var(--color-text-light);
-}
-
 main {
-    max-width: 1000px; /* Increased max-width for the classification page */
-    margin: 40px auto; /* Center the main content */
-    display: flex;
-    flex-direction: column;
-    gap: 30px;
+    max-width: 1200px;
+    margin: 20px auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
 }
 
-footer {
-    margin-top: 40px;
-    padding: 20px 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-    font-size: 0.9em;
-    color: rgba(255, 255, 255, 0.7);
-}
-
-/* Container styles for classification page */
+/* --- Main Containers --- */
 #plot-container {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--color-container-bg);
     border-radius: 8px;
-    padding: 20px;
-    min-height: 400px; /* Placeholder height */
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 1.5em;
-    color: rgba(255, 255, 255, 0.5);
-    border: 1px dashed rgba(255, 255, 255, 0.2);
+    padding: 10px;
+    border: 1px solid var(--color-container-border);
 }
 
 #controls-container,
 #scoreboard-container {
-    background-color: rgba(255, 255, 255, 0.05);
+    background-color: var(--color-container-bg);
     border-radius: 8px;
     padding: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--color-container-border);
 }
 
+/* --- Cube Visualization Styles --- */
+.cube-group {
+    transition: transform 0.4s ease-out;
+}
+
+.cube {
+    fill: white;
+    stroke: #34495e;
+    stroke-width: 1px;
+}
+
+/* Style for misclassified cubes */
+.cube-group.misclassified .cube {
+    stroke: #e74c3c; /* Bright red border for mistakes */
+    stroke-width: 3px;
+}
+
+.threshold-line {
+    stroke: var(--color-threshold);
+    stroke-width: 4px;
+    cursor: ew-resize; /* East-West resize cursor */
+}
+
+/* --- Controls Styling --- */
 #controls-container {
     display: grid;
-    grid-template-columns: 1fr; /* Will adjust later for more columns */
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 30px;
+    text-align: left;
 }
 
+.control-group h3, .scenario-buttons h3, .guess-compare-buttons h3 {
+    margin-bottom: 10px;
+    color: var(--color-text-light);
+}
+
+.control-group label {
+    display: block;
+    margin-top: 10px;
+}
+
+input[type="range"] {
+    width: 100%;
+}
+
+.scenario-buttons, .guess-compare-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    background-color: #3498db;
+    color: white;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+button:hover {
+    background-color: #2980b9;
+}
+
+/* --- Scoreboard Styling --- */
 #scoreboard-container {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: 15px;
-    font-size: 1.1em;
+    text-align: left;
 }
 
-/* Styles for the new cube elements */
-.data-point rect {
-    transition: stroke 0.2s ease-out;
+.score-item {
+    background-color: rgba(0, 0, 0, 0.2);
+    padding: 10px;
+    border-radius: 5px;
 }
 
-.data-point.misclassified rect {
-    stroke: red;
-    stroke-width: 2px;
+.score-label {
+    display: block;
+    font-size: 0.9em;
+    color: rgba(255, 255, 255, 0.7);
 }
 
-.data-point circle {
-    transition: fill 0.2s ease-out;
+.score-value {
+    font-size: 1.5em;
+    font-weight: bold;
+}
+
+.accuracy-item {
+    grid-column: 1 / -1; /* Make accuracy span full width */
+    text-align: center;
+    background-color: #16a085;
+}
+
+.accuracy-item .score-label {
+    color: white;
+}
+
+.accuracy-item .score-value {
+    font-size: 2em;
+    color: white;
 }
