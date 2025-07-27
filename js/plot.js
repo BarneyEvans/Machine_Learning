@@ -5,6 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const width = plotContainer.node().clientWidth;
     const initialHeight = 400;
     const MIN_PLOT_HEIGHT = 400;
+    const MAX_STACK_CAP = 30; // Cap the maximum stack height
 
     const svg = plotContainer.append('svg')
         .attr('width', width)
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .range([50, width - 50])
         .padding(0);
 
-    const yScale = d3.scaleBand();
+    const yScale = d3.scaleLinear(); // A simple linear scale for the axis
 
     let currentMeanA = Math.floor(X_DOMAIN[1] * 0.25);
     let currentSpreadA = 3;
@@ -52,30 +53,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const stackIndex = valueCounts[value];
             valueCounts[value]++;
-            return { ...d, x: xScale(value), y: stackIndex };
+            return { ...d, x: xScale(value), y: stackIndex }; // y is the 0-based stack index
         });
     }
 
-    const blueRegion = svg.append('rect')
-        .attr('id', 'blue-region')
-        .attr('fill', 'var(--color-class-a)')
-        .attr('fill-opacity', 0.1);
-
-    const redRegion = svg.append('rect')
-        .attr('id', 'red-region')
-        .attr('fill', 'var(--color-class-b)')
-        .attr('fill-opacity', 0.1);
+    const blueRegion = svg.append('rect').attr('id', 'blue-region').attr('fill', 'var(--color-class-a)').attr('fill-opacity', 0.1);
+    const redRegion = svg.append('rect').attr('id', 'red-region').attr('fill', 'var(--color-class-b)').attr('fill-opacity', 0.1);
 
     function updateClassificationRegions() {
         const currentSvgHeight = svg.attr('height');
         const currentSvgWidth = svg.attr('width');
         const thresholdX = xScale(currentThreshold) - xScale.padding() * xScale.step() / 2;
-
         blueRegion.attr('x', 0).attr('y', 0).attr('width', thresholdX).attr('height', currentSvgHeight);
         redRegion.attr('x', thresholdX).attr('y', 0).attr('width', currentSvgWidth - thresholdX).attr('height', currentSvgHeight);
     }
 
     const xAxisGroup = svg.append('g').attr('class', 'x-axis');
+    const yAxisGroup = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(40, 0)`);
 
     function updateXAxis() {
         const currentSvgHeight = svg.attr('height');
@@ -84,17 +78,15 @@ document.addEventListener('DOMContentLoaded', () => {
         xAxisGroup.call(xAxis);
     }
 
-    const yAxisGroup = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(40, 0)`);
-
-    function updateYAxis() {
-        const yAxis = d3.axisLeft(yScale)
-            .tickFormat(d => d + 1);
+    function updateYAxis(maxStack) {
+        const yAxis = d3.axisLeft(yScale).ticks(maxStack).tickFormat(d3.format('d'));
         yAxisGroup.call(yAxis);
         yAxisGroup.select(".domain").remove();
     }
 
     function renderCubes(data) {
-        const maxStack = d3.max(Array.from(d3.rollup(data, v => v.length, d => d.value).values())) || 1;
+        let maxStack = d3.max(Array.from(d3.rollup(data, v => v.length, d => d.value).values())) || 1;
+        maxStack = Math.min(maxStack, MAX_STACK_CAP); // Cap the max stack height
 
         const paddingTop = 30;
         const paddingBottom = 40;
@@ -105,15 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
         svg.attr('height', newHeight);
         plotContainer.style('height', `${newHeight}px`).style('transition', 'height 0.5s ease-out');
 
-        // ** FIX: Correctly define the range to eliminate gaps **
-        const yStackHeight = maxStack * CUBE_SIZE;
-        yScale.domain(d3.range(maxStack).reverse()) // Reverse domain to stack from bottom-up
-              .range([paddingTop, paddingTop + yStackHeight])
-              .padding(0);
+        // Define the y-axis scale to perfectly center the labels
+        yScale.domain([1, maxStack])
+              .range([(newHeight - paddingBottom) - (0.5 * CUBE_SIZE), (newHeight - paddingBottom) - (maxStack - 0.5) * CUBE_SIZE]);
 
         thresholdLine.attr('y2', newHeight - 30);
 
-        updateYAxis();
+        updateYAxis(maxStack);
         updateXAxis();
         updateClassificationRegions();
 
@@ -122,14 +112,17 @@ document.addEventListener('DOMContentLoaded', () => {
         cubeGroups.exit().transition().duration(500).attr('transform', 'scale(0)').remove();
 
         const enterGroups = cubeGroups.enter().append('g').attr('class', 'cube-group');
-
         enterGroups.append('rect').attr('class', 'cube').attr('width', CUBE_SIZE).attr('height', CUBE_SIZE).attr('rx', CUBE_RADIUS);
         enterGroups.append('circle').attr('class', 'dot').attr('cx', CUBE_SIZE / 2).attr('cy', CUBE_SIZE / 2).attr('r', DOT_RADIUS);
 
         const mergedGroups = enterGroups.merge(cubeGroups);
 
+        // Manually calculate y-position for perfect stacking, no gaps
         mergedGroups.transition().duration(500).delay((d, i) => i * 5)
-            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`);
+            .attr('transform', d => {
+                const yPos = (newHeight - paddingBottom) - (d.y + 1) * CUBE_SIZE;
+                return `translate(${d.x}, ${yPos})`;
+            });
 
         mergedGroups.select('.dot').style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)');
         mergedGroups.classed('misclassified', d => (d.class === 'A' && d.value >= currentThreshold) || (d.class === 'B' && d.value < currentThreshold));
