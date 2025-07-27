@@ -64,8 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const currentSvgHeight = svg.attr('height');
         const currentSvgWidth = svg.attr('width');
         const thresholdX = xScale(currentThreshold) - xScale.padding() * xScale.step() / 2;
-        blueRegion.attr('x', 0).attr('y', 0).attr('width', thresholdX).attr('height', currentSvgHeight);
-        redRegion.attr('x', thresholdX).attr('y', 0).attr('width', currentSvgWidth - thresholdX).attr('height', currentSvgHeight);
+        blueRegion.attr('x', 0).attr('y', 0).attr('width', thresholdX).attr('height', currentSvgHeight - 30);
+        redRegion.attr('x', thresholdX).attr('y', 0).attr('width', currentSvgWidth - thresholdX).attr('height', currentSvgHeight - 30);
     }
 
     const xAxisGroup = svg.append('g').attr('class', 'x-axis');
