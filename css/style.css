@@ -84,3 +84,17 @@ footer {
     gap: 15px;
     font-size: 1.1em;
 }
+
+/* Styles for the new cube elements */
+.data-point rect {
+    transition: stroke 0.2s ease-out;
+}
+
+.data-point.misclassified rect {
+    stroke: red;
+    stroke-width: 2px;
+}
+
+.data-point circle {
+    transition: fill 0.2s ease-out;
+}
