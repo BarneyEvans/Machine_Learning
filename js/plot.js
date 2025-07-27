@@ -1,0 +1,127 @@
+
+// js/plot.js
+
+document.addEventListener('DOMContentLoaded', () => {
+    const plotContainer = d3.select('#plot-container');
+    const width = plotContainer.node().clientWidth;
+    const height = 400; // Fixed height for the plot area
+
+    const svg = plotContainer.append('svg')
+        .attr('width', width)
+        .attr('height', height);
+
+    // Scales
+    const xScale = d3.scaleLinear()
+        .domain([0, 100]) // Example domain for the feature
+        .range([50, width - 50]); // Padding on sides
+
+    const yScale = d3.scaleLinear()
+        .domain([0, 10]) // Max stack height (will adjust dynamically)
+        .range([height - 30, 30]); // Inverted for SVG, padding on top/bottom
+
+    // Function to generate data for a class
+    function generateClassData(mean, stdDev, count, className) {
+        const data = [];
+        for (let i = 0; i < count; i++) {
+            // Generate a random value from a normal distribution
+            // Using Box-Muller transform for simplicity
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+            while(v === 0) v = Math.random();
+            let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+            let value = mean + z * stdDev;
+
+            // Clamp values to a reasonable range (e.g., 0-100)
+            value = Math.max(0, Math.min(100, value));
+
+            data.push({
+                id: `${className}-${i}`,
+                value: value,
+                class: className,
+                x: 0, // Placeholder for calculated x
+                y: 0, // Placeholder for calculated y
+                originalY: 0 // For data drop animation
+            });
+        }
+        return data;
+    }
+
+    // Function to position dots in stacks with jitter
+    function positionDots(data) {
+        // Group data by rounded value for stacking
+        const groupedData = d3.group(data, d => Math.round(d.value));
+
+        // Calculate positions
+        groupedData.forEach(group => {
+            group.sort((a, b) => a.value - b.value); // Sort within group for consistent stacking
+            group.forEach((d, i) => {
+                d.x = xScale(d.value) + (Math.random() - 0.5) * 5; // Jitter
+                d.y = yScale(i + 1) + (Math.random() - 0.5) * 5; // Stack vertically with jitter
+                d.originalY = -50; // Start above for data drop
+            });
+        });
+        return data;
+    }
+
+    // Initial "Easy Separation" data
+    let classAData = generateClassData(25, 5, 50, 'A');
+    let classBData = generateClassData(75, 5, 50, 'B');
+    let allData = positionDots([...classAData, ...classBData]);
+
+    // Render dots
+    function renderDots(data) {
+        const dots = svg.selectAll('.dot')
+            .data(data, d => d.id); // Use id for object constancy
+
+        // Exit
+        dots.exit().remove();
+
+        // Enter
+        const enterDots = dots.enter().append('circle')
+            .attr('class', d => `dot dot-${d.class.toLowerCase()}`)
+            .attr('r', 5) // Radius of dots
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.originalY) // Start from originalY for animation
+            .style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)')
+            .style('opacity', 0); // Start invisible for data drop
+
+        // Update (for existing and entering dots)
+        enterDots.merge(dots)
+            .transition()
+            .duration(1000) // Data drop animation duration
+            .delay((d, i) => i * 10) // Staggered delay for data drop
+            .attr('cx', d => d.x)
+            .attr('cy', d => d.y)
+            .style('opacity', 1);
+    }
+
+    renderDots(allData);
+
+    // Add a simple x-axis for now
+    const xAxis = d3.axisBottom(xScale);
+    svg.append('g')
+        .attr('class', 'x-axis')
+        .attr('transform', `translate(0, ${height - 30})`)
+        .call(xAxis);
+
+    // Placeholder for threshold line
+    svg.append('line')
+        .attr('class', 'threshold-line')
+        .attr('x1', xScale(50))
+        .attr('y1', 30)
+        .attr('x2', xScale(50))
+        .attr('y2', height - 30)
+        .style('stroke', 'var(--color-threshold)')
+        .style('stroke-width', 3);
+
+    // Resize listener (basic)
+    window.addEventListener('resize', () => {
+        const newWidth = plotContainer.node().clientWidth;
+        svg.attr('width', newWidth);
+        xScale.range([50, newWidth - 50]);
+        svg.select('.x-axis').call(xAxis);
+        // Re-render dots to adjust positions
+        allData = positionDots(allData.map(d => ({...d, value: d.value}))); // Re-calculate positions
+        renderDots(allData);
+    });
+});
