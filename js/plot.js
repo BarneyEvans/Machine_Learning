@@ -24,6 +24,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentMeanB = 75;
     let currentSpreadB = 5;
     let currentThreshold = 50;
+    let allData = []; // Store current data globally
+
+    // Variables for Guess & Compare
+    let lockedGuessThreshold = null;
+    let optimalThreshold = null;
 
     // Function to generate data for a class
     function generateClassData(mean, stdDev, count, className) {
@@ -115,8 +120,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const fnScoreSpan = document.getElementById('fn-score');
     const accuracyScoreSpan = document.getElementById('accuracy-score');
 
-    // Function to update the scoreboard
-    function updateScoreboard(data, threshold) {
+    // Function to calculate classification metrics
+    function calculateMetrics(data, threshold) {
         let tp = 0, fp = 0, tn = 0, fn = 0;
 
         data.forEach(d => {
@@ -134,16 +139,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         });
-
         const total = data.length;
         const correct = tp + tn;
         const accuracy = total > 0 ? (correct / total * 100).toFixed(1) : 0;
+        return { tp, fp, tn, fn, accuracy };
+    }
 
-        tpScoreSpan.textContent = tp;
-        fpScoreSpan.textContent = fp;
-        tnScoreSpan.textContent = tn;
-        fnScoreSpan.textContent = fn;
-        accuracyScoreSpan.textContent = `${accuracy}%`;
+    // Function to update the scoreboard display
+    function updateScoreboardDisplay(metrics, prefix = '') {
+        document.getElementById(`${prefix}tp-score`).textContent = metrics.tp;
+        document.getElementById(`${prefix}fp-score`).textContent = metrics.fp;
+        document.getElementById(`${prefix}tn-score`).textContent = metrics.tn;
+        document.getElementById(`${prefix}fn-score`).textContent = metrics.fn;
+        document.getElementById(`${prefix}accuracy-score`).textContent = `${metrics.accuracy}%`;
     }
 
     // Threshold line
@@ -170,11 +178,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     thresholdLine.call(drag);
 
+    // Function to find the optimal threshold
+    function findOptimalThreshold(data) {
+        let bestThreshold = 0;
+        let maxAccuracy = -1;
+
+        // Iterate through all possible integer thresholds
+        for (let t = 0; t <= 100; t += 0.1) { // Check every 0.1 unit for finer granularity
+            const metrics = calculateMetrics(data, t);
+            if (metrics.accuracy > maxAccuracy) {
+                maxAccuracy = metrics.accuracy;
+                bestThreshold = t;
+            }
+        }
+        return bestThreshold;
+    }
+
     // Function to update the plot based on current parameters
     function updatePlot() {
         let classAData = generateClassData(currentMeanA, currentSpreadA, 50, 'A');
         let classBData = generateClassData(currentMeanB, currentSpreadB, 50, 'B');
-        let allData = positionDots([...classAData, ...classBData]);
+        allData = positionDots([...classAData, ...classBData]); // Update global allData
         renderDots(allData);
 
         // Update threshold line position
@@ -182,7 +206,25 @@ document.addEventListener('DOMContentLoaded', () => {
             .attr('x1', xScale(currentThreshold))
             .attr('x2', xScale(currentThreshold));
 
-        updateScoreboard(allData, currentThreshold);
+        // Update current scoreboard
+        const currentMetrics = calculateMetrics(allData, currentThreshold);
+        updateScoreboardDisplay(currentMetrics, '');
+
+        // Update locked guess scoreboard if active
+        if (lockedGuessThreshold !== null) {
+            const lockedMetrics = calculateMetrics(allData, lockedGuessThreshold);
+            // Assuming you'll have separate HTML elements for locked guess scoreboard
+            // For now, let's just log or display in a placeholder
+            console.log('Locked Guess Metrics:', lockedMetrics);
+        }
+
+        // Update optimal scoreboard if active
+        if (optimalThreshold !== null) {
+            const optimalMetrics = calculateMetrics(allData, optimalThreshold);
+            // Assuming you'll have separate HTML elements for optimal scoreboard
+            // For now, let's just log or display in a placeholder
+            console.log('Optimal Metrics:', optimalMetrics);
+        }
     }
 
     // Initial render
@@ -263,13 +305,63 @@ document.addEventListener('DOMContentLoaded', () => {
         updatePlot();
     });
 
+    // Guess & Compare buttons
+    document.getElementById('lock-guess').addEventListener('click', () => {
+        lockedGuessThreshold = currentThreshold;
+        // Draw locked guess line
+        svg.selectAll('.locked-guess-line').remove(); // Remove previous locked line
+        svg.append('line')
+            .attr('class', 'locked-guess-line')
+            .attr('x1', xScale(lockedGuessThreshold))
+            .attr('y1', 30)
+            .attr('x2', xScale(lockedGuessThreshold))
+            .attr('y2', height - 30)
+            .style('stroke', 'gray') // Semi-transparent
+            .style('stroke-width', 2)
+            .style('stroke-dasharray', ('5,5'));
+
+        // Update locked guess scoreboard (need to add HTML for this)
+        const lockedMetrics = calculateMetrics(allData, lockedGuessThreshold);
+        console.log('Locked Guess Metrics:', lockedMetrics); // For now, log to console
+    });
+
+    document.getElementById('show-optimal').addEventListener('click', () => {
+        optimalThreshold = findOptimalThreshold(allData);
+        // Draw optimal line
+        svg.selectAll('.optimal-line').remove(); // Remove previous optimal line
+        svg.append('line')
+            .attr('class', 'optimal-line')
+            .attr('x1', xScale(optimalThreshold))
+            .attr('y1', 30)
+            .attr('x2', xScale(optimalThreshold))
+            .attr('y2', height - 30)
+            .style('stroke', 'gold') // Bold
+            .style('stroke-width', 4);
+
+        // Update optimal scoreboard (need to add HTML for this)
+        const optimalMetrics = calculateMetrics(allData, optimalThreshold);
+        console.log('Optimal Metrics:', optimalMetrics); // For now, log to console
+    });
+
     // Resize listener
     window.addEventListener('resize', () => {
         const newWidth = plotContainer.node().clientWidth;
         svg.attr('width', newWidth);
         xScale.range([50, newWidth - 50]);
         svg.select('.x-axis').call(xAxis);
-        // Re-render dots to adjust positions
-        updatePlot(); // Re-calculate positions and render
+        // Re-render dots and lines to adjust positions
+        updatePlot();
+
+        // Redraw locked and optimal lines on resize
+        if (lockedGuessThreshold !== null) {
+            svg.select('.locked-guess-line')
+                .attr('x1', xScale(lockedGuessThreshold))
+                .attr('x2', xScale(lockedGuessThreshold));
+        }
+        if (optimalThreshold !== null) {
+            svg.select('.optimal-line')
+                .attr('x1', xScale(optimalThreshold))
+                .attr('x2', xScale(optimalThreshold));
+        }
     });
 });
