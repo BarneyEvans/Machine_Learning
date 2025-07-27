@@ -57,8 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    const blueRegion = svg.append('rect').attr('id', 'blue-region').attr('fill', 'var(--color-class-a)').attr('fill-opacity', 0.1);
-    const redRegion = svg.append('rect').attr('id', 'red-region').attr('fill', 'var(--color-class-b)').attr('fill-opacity', 0.1);
+    const blueRegion = svg.append('rect').attr('id', 'blue-region').attr('fill', 'var(--color-class-a)').attr('fill-opacity', 0.2);
+    const redRegion = svg.append('rect').attr('id', 'red-region').attr('fill', 'var(--color-class-b)').attr('fill-opacity', 0.2);
 
     function updateClassificationRegions() {
         const currentSvgHeight = svg.attr('height');
