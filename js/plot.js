@@ -3,29 +3,25 @@
 document.addEventListener('DOMContentLoaded', () => {
     const plotContainer = d3.select('#plot-container');
     const width = plotContainer.node().clientWidth;
-    const initialHeight = 400; // This will be dynamically adjusted
-    const MIN_PLOT_HEIGHT = 400; // Minimum height for the plot area
+    const initialHeight = 400;
+    const MIN_PLOT_HEIGHT = 400;
 
     const svg = plotContainer.append('svg')
         .attr('width', width)
-        .attr('height', initialHeight); // Initial height, will be updated
+        .attr('height', initialHeight);
 
-    // --- Configuration for the new Cube layout ---
-    const CUBE_SIZE = 20; // The width and height of each cube
-    const CUBE_RADIUS = 4; // The corner radius for the cubes
-    const DOT_RADIUS = 5; // The radius of the dot inside the cube
-    const X_DOMAIN = [0, Math.floor((width - 100) / CUBE_SIZE)]; // Dynamically set domain based on width
+    const CUBE_SIZE = 20;
+    const CUBE_RADIUS = 4;
+    const DOT_RADIUS = 5;
+    const X_DOMAIN = [0, Math.floor((width - 100) / CUBE_SIZE)];
 
-    // --- Scales ---
     const xScale = d3.scaleBand()
         .domain(d3.range(X_DOMAIN[0], X_DOMAIN[1]))
         .range([50, width - 50])
         .padding(0);
 
-    // yScale will be updated dynamically in renderCubes
     const yScale = d3.scaleLinear();
 
-    // Initial parameters for data generation
     let currentMeanA = Math.floor(X_DOMAIN[1] * 0.25);
     let currentSpreadA = 3;
     let currentMeanB = Math.floor(X_DOMAIN[1] * 0.75);
@@ -33,7 +29,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentThreshold = Math.floor(X_DOMAIN[1] * 0.5);
     let allData = [];
 
-    // --- Data Generation (Updated for integer values) ---
     function generateClassData(mean, stdDev, count, className) {
         const data = [];
         for (let i = 0; i < count; i++) {
@@ -49,9 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    // --- Positioning Logic for Cubes ---
     function positionCubes(data) {
-        const valueCounts = {}; // Track stack height for each value
+        const valueCounts = {};
         return data.map(d => {
             const value = d.value;
             if (!valueCounts[value]) {
@@ -64,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Classification Regions (Background) ---
     const blueRegion = svg.append('rect')
         .attr('id', 'blue-region')
         .attr('fill', 'var(--color-class-a)')
@@ -93,99 +86,77 @@ document.addEventListener('DOMContentLoaded', () => {
             .attr('height', currentSvgHeight);
     }
 
-    // --- X-Axis ---
     const xAxisGroup = svg.append('g')
         .attr('class', 'x-axis');
 
     function updateXAxis() {
         const currentSvgHeight = svg.attr('height');
-        xAxisGroup.attr('transform', `translate(0, ${currentSvgHeight - 30})`); // Position at bottom
+        xAxisGroup.attr('transform', `translate(0, ${currentSvgHeight - 30})`);
         const xAxis = d3.axisBottom(xScale);
         xAxisGroup.call(xAxis);
     }
 
-    // --- Y-Axis ---
     const yAxisGroup = svg.append('g')
         .attr('class', 'y-axis')
-        .attr('transform', `translate(40, 0)`); // Position the axis to the left of the plot area
+        .attr('transform', `translate(40, 0)`);
 
     function updateYAxis(maxStack) {
-        // Create an array of numbers from 1 to the max stack height
-        const tickValues = d3.range(1, maxStack + 1);
-
+        const tickValues = d3.range(1, (maxStack || 0) + 1);
         const yAxis = d3.axisLeft(yScale)
-            .tickValues(tickValues) // Tell D3 to only use these values for ticks
-            .tickFormat(d3.format('d')); // Format them as whole numbers
-
+            .tickValues(tickValues)
+            .tickFormat(d3.format('d'));
         yAxisGroup.call(yAxis);
     }
 
-    // --- Render Logic for Cubes ---
     function renderCubes(data) {
-        // Determine the max stack height
-        const maxStack = d3.max(Object.values(d3.rollup(data, v => v.length, d => d.value))) || 1;
+        const maxStack = d3.max(Array.from(d3.rollup(data, v => v.length, d => d.value).values())) || 1;
 
-        // Calculate new height for the SVG based on maxStack, ensuring a minimum height
         const paddingTop = 30;
         const paddingBottom = 30;
         const requiredHeightForCubes = maxStack * CUBE_SIZE;
         let newHeight = requiredHeightForCubes + paddingTop + paddingBottom;
-        newHeight = Math.max(newHeight, MIN_PLOT_HEIGHT); // Ensure minimum height
+        newHeight = Math.max(newHeight, MIN_PLOT_HEIGHT);
 
-        // Update SVG height
         svg.attr('height', newHeight);
 
-        // Update yScale domain and range
         yScale.domain([0, maxStack])
               .range([newHeight - paddingBottom - CUBE_SIZE, newHeight - paddingBottom - (maxStack * CUBE_SIZE) - CUBE_SIZE]);
 
-        // Update threshold line y2
         thresholdLine.attr('y2', newHeight - paddingBottom);
 
-        // Update Axes
-        updateYAxis(maxStack); // Pass maxStack to the function
-        updateXAxis(); 
-        updateXAxis(); // Update X-axis position based on new height
-
-        // Update classification regions
+        updateYAxis(maxStack);
+        updateXAxis();
         updateClassificationRegions();
-
 
         const cubeGroups = svg.selectAll('.cube-group').data(data, d => d.id);
 
-        // Exit
         cubeGroups.exit().transition().duration(500).attr('transform', 'scale(0)').remove();
 
-        // Enter
         const enterGroups = cubeGroups.enter().append('g')
             .attr('class', 'cube-group');
 
-        // White cube with curved edges
         enterGroups.append('rect')
             .attr('class', 'cube')
             .attr('width', CUBE_SIZE)
             .attr('height', CUBE_SIZE)
-            .attr('rx', CUBE_RADIUS); // Corner radius
+            .attr('rx', CUBE_RADIUS);
 
-        // Centered colored dot
         enterGroups.append('circle')
             .attr('class', 'dot')
             .attr('cx', CUBE_SIZE / 2)
             .attr('cy', CUBE_SIZE / 2)
             .attr('r', DOT_RADIUS);
 
-        // Update (for existing and entering groups)
         const mergedGroups = enterGroups.merge(cubeGroups);
 
         mergedGroups.transition()
             .duration(500)
             .delay((d, i) => i * 5)
-            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`); // Position top-left of cube
+            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`);
 
         mergedGroups.select('.dot')
             .style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)');
 
-        // Update misclassified state
         mergedGroups.classed('misclassified', d => {
             if (d.class === 'A' && d.value >= currentThreshold) return true;
             if (d.class === 'B' && d.value < currentThreshold) return true;
@@ -193,7 +164,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // --- Scoreboard and Threshold Logic (largely unchanged, but adapted for new scale) ---
     const accuracyScoreSpan = document.getElementById('accuracy-score');
     const tpScoreSpan = document.getElementById('tp-score');
     const fpScoreSpan = document.getElementById('fp-score');
@@ -206,7 +176,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const predictedClass = d.value < threshold ? 'A' : 'B';
             if (d.class === 'A') {
                 predictedClass === 'A' ? tn++ : fp++;
-            } else { // Actual Class B
+            } else {
                 predictedClass === 'B' ? tp++ : fn++;
             }
         });
@@ -223,11 +193,10 @@ document.addEventListener('DOMContentLoaded', () => {
         accuracyScoreSpan.textContent = `${metrics.accuracy}%`;
     }
 
-    // --- Threshold Line ---
     const thresholdLine = svg.append('line')
         .attr('class', 'threshold-line')
-        .attr('y1', 30) // Will be updated dynamically
-        .attr('y2', initialHeight - 30); // Will be updated dynamically
+        .attr('y1', 30)
+        .attr('y2', initialHeight - 30);
 
     const drag = d3.drag()
         .on('drag', (event) => {
@@ -237,10 +206,10 @@ document.addEventListener('DOMContentLoaded', () => {
             currentThreshold = Math.max(X_DOMAIN[0], Math.min(X_DOMAIN[1], index));
             updateThresholdLine();
             updateFeedback();
-            updateClassificationRegions(); // Update regions on drag
+            updateClassificationRegions();
         });
 
-    svg.call(drag); // Allow dragging anywhere on the SVG
+    svg.call(drag);
 
     function updateThresholdLine() {
          thresholdLine
@@ -248,7 +217,6 @@ document.addEventListener('DOMContentLoaded', () => {
             .attr('x2', xScale(currentThreshold) - xScale.padding() * xScale.step() / 2);
     }
 
-    // --- Main Update Functions ---
     function updateFeedback() {
         const metrics = calculateMetrics(allData, currentThreshold);
         updateScoreboardDisplay(metrics);
@@ -267,23 +235,22 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCubes(positionedData);
         updateThresholdLine();
         updateFeedback();
-        updateClassificationRegions(); // Initial update for regions
+        updateClassificationRegions();
     }
 
-    // --- Sliders and Buttons (adapted for new X_DOMAIN) ---
     const meanASlider = document.getElementById('meanA');
     meanASlider.max = X_DOMAIN[1] -1;
     meanASlider.value = currentMeanA;
     meanASlider.addEventListener('input', (e) => {
         currentMeanA = +e.target.value;
-        document.getElementById('meanA-value').textContent = currentMeanA; // Update value display
+        document.getElementById('meanA-value').textContent = currentMeanA;
         updatePlot();
     });
 
     const spreadASlider = document.getElementById('spreadA');
     spreadASlider.addEventListener('input', (e) => {
         currentSpreadA = +e.target.value;
-        document.getElementById('spreadA-value').textContent = currentSpreadA; // Update value display
+        document.getElementById('spreadA-value').textContent = currentSpreadA;
         updatePlot();
     });
 
@@ -292,17 +259,16 @@ document.addEventListener('DOMContentLoaded', () => {
     meanBSlider.value = currentMeanB;
     meanBSlider.addEventListener('input', (e) => {
         currentMeanB = +e.target.value;
-        document.getElementById('meanB-value').textContent = currentMeanB; // Update value display
+        document.getElementById('meanB-value').textContent = currentMeanB;
         updatePlot();
     });
 
     const spreadBSlider = document.getElementById('spreadB');
     spreadBSlider.addEventListener('input', (e) => {
         currentSpreadB = +e.target.value;
-        document.getElementById('spreadB-value').textContent = currentSpreadB; // Update value display
+        document.getElementById('spreadB-value').textContent = currentSpreadB;
         updatePlot();
     });
 
-    // Initial Render
     updatePlot();
 });
