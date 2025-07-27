@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotContainer = d3.select('#plot-container');
     const width = plotContainer.node().clientWidth;
     const initialHeight = 400; // This will be dynamically adjusted
-    const MIN_PLOT_HEIGHT = 200; // Minimum height for the plot area
+    const MIN_PLOT_HEIGHT = 400; // Minimum height for the plot area
 
     const svg = plotContainer.append('svg')
         .attr('width', width)
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update yScale domain and range
         yScale.domain([0, maxStack])
-              .range([newHeight - paddingBottom, paddingTop]); // Map 0 to bottom, maxStack to top
+              .range([newHeight - paddingBottom - CUBE_SIZE, paddingTop]); // Map 0 to top of first cube, maxStack to top of highest cube
 
         // Update threshold line y2
         thresholdLine.attr('y2', newHeight - paddingBottom);
@@ -174,7 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mergedGroups.transition()
             .duration(500)
             .delay((d, i) => i * 5)
-            .attr('transform', d => `translate(${d.x}, ${yScale(d.y) - CUBE_SIZE})`); // Position top-left of cube
+            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`); // Position top-left of cube
 
         mergedGroups.select('.dot')
             .style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)');
