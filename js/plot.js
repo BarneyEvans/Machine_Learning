@@ -109,9 +109,14 @@ document.addEventListener('DOMContentLoaded', () => {
         .attr('class', 'y-axis')
         .attr('transform', `translate(40, 0)`); // Position the axis to the left of the plot area
 
-    function updateYAxis() {
+    function updateYAxis(maxStack) {
+        // Create an array of numbers from 1 to the max stack height
+        const tickValues = d3.range(1, maxStack + 1);
+
         const yAxis = d3.axisLeft(yScale)
-            .tickFormat(d => d === 0 ? '' : d); // Don't show 0, as it's the base
+            .tickValues(tickValues) // Tell D3 to only use these values for ticks
+            .tickFormat(d3.format('d')); // Format them as whole numbers
+
         yAxisGroup.call(yAxis);
     }
 
@@ -138,7 +143,8 @@ document.addEventListener('DOMContentLoaded', () => {
         thresholdLine.attr('y2', newHeight - paddingBottom);
 
         // Update Axes
-        updateYAxis();
+        updateYAxis(maxStack); // Pass maxStack to the function
+        updateXAxis(); 
         updateXAxis(); // Update X-axis position based on new height
 
         // Update classification regions
