@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    // Render dots
+    // Function to render dots
     function renderDots(data) {
         const dots = svg.selectAll('.dot')
             .data(data, d => d.id); // Use id for object constancy
@@ -92,11 +92,58 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update (for existing and entering dots)
         enterDots.merge(dots)
             .transition()
-            .duration(1000) // Data drop animation duration
-            .delay((d, i) => i * 10) // Staggered delay for data drop
+            .duration(500) // Data drop animation duration
+            .delay((d, i) => i * 5) // Staggered delay for data drop
             .attr('cx', d => d.x)
             .attr('cy', d => d.y)
-            .style('opacity', 1);
+            .style('opacity', 1)
+            .attr('class', d => {
+                let isMisclassified = false;
+                if (d.class === 'A' && d.value >= currentThreshold) {
+                    isMisclassified = true; // Class A dot classified as B
+                } else if (d.class === 'B' && d.value < currentThreshold) {
+                    isMisclassified = true; // Class B dot classified as A
+                }
+                return `dot dot-${d.class.toLowerCase()} ${isMisclassified ? 'misclassified' : ''}`;
+            });
+    }
+
+    // Scoreboard elements
+    const tpScoreSpan = document.getElementById('tp-score');
+    const fpScoreSpan = document.getElementById('fp-score');
+    const tnScoreSpan = document.getElementById('tn-score');
+    const fnScoreSpan = document.getElementById('fn-score');
+    const accuracyScoreSpan = document.getElementById('accuracy-score');
+
+    // Function to update the scoreboard
+    function updateScoreboard(data, threshold) {
+        let tp = 0, fp = 0, tn = 0, fn = 0;
+
+        data.forEach(d => {
+            if (d.class === 'A') { // Actual Class A
+                if (d.value < threshold) {
+                    tn++; // Correctly classified as A (Negative class in this context)
+                } else {
+                    fp++; // Incorrectly classified as B (Positive class in this context)
+                }
+            } else { // Actual Class B
+                if (d.value >= threshold) {
+                    tp++; // Correctly classified as B (Positive class in this context)
+                } else {
+                    fn++; // Incorrectly classified as A (Negative class in this context)
+                }
+            }
+        });
+
+        const total = data.length;
+        const correct = tp + tn;
+        const accuracy = total > 0 ? (correct / total * 100).toFixed(1) : 0;
+
+        tpScoreSpan.textContent = tp;
+        fpScoreSpan.textContent = fp;
+        tnScoreSpan.textContent = tn;
+        fnScoreSpan.textContent = fn;
+        accuracyScoreSpan.textContent = `${accuracy}%`;
     }
 
     // Threshold line
@@ -118,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
             thresholdLine
                 .attr('x1', clampedX)
                 .attr('x2', clampedX);
+            updatePlot(); // Re-render dots and update scoreboard on drag
         });
 
     thresholdLine.call(drag);
@@ -133,6 +181,8 @@ document.addEventListener('DOMContentLoaded', () => {
         thresholdLine
             .attr('x1', xScale(currentThreshold))
             .attr('x2', xScale(currentThreshold));
+
+        updateScoreboard(allData, currentThreshold);
     }
 
     // Initial render
