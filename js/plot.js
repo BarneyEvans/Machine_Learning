@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const plotContainer = d3.select('#plot-container');
     const width = plotContainer.node().clientWidth;
     const initialHeight = 400; // This will be dynamically adjusted
+    const MIN_PLOT_HEIGHT = 200; // Minimum height for the plot area
 
     const svg = plotContainer.append('svg')
         .attr('width', width)
@@ -63,6 +64,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- Classification Regions (Background) ---
+    const blueRegion = svg.append('rect')
+        .attr('id', 'blue-region')
+        .attr('fill', 'var(--color-class-a)')
+        .attr('fill-opacity', 0.1);
+
+    const redRegion = svg.append('rect')
+        .attr('id', 'red-region')
+        .attr('fill', 'var(--color-class-b)')
+        .attr('fill-opacity', 0.1);
+
+    function updateClassificationRegions() {
+        const currentSvgHeight = svg.attr('height');
+        const currentSvgWidth = svg.attr('width');
+        const thresholdX = xScale(currentThreshold) - xScale.padding() * xScale.step() / 2;
+
+        blueRegion
+            .attr('x', 0)
+            .attr('y', 0)
+            .attr('width', thresholdX)
+            .attr('height', currentSvgHeight);
+
+        redRegion
+            .attr('x', thresholdX)
+            .attr('y', 0)
+            .attr('width', currentSvgWidth - thresholdX)
+            .attr('height', currentSvgHeight);
+    }
+
+    // --- X-Axis ---
+    const xAxisGroup = svg.append('g')
+        .attr('class', 'x-axis');
+
+    function updateXAxis() {
+        const currentSvgHeight = svg.attr('height');
+        xAxisGroup.attr('transform', `translate(0, ${currentSvgHeight - 30})`); // Position at bottom
+        const xAxis = d3.axisBottom(xScale);
+        xAxisGroup.call(xAxis);
+    }
+
     // --- Y-Axis ---
     const yAxisGroup = svg.append('g')
         .attr('class', 'y-axis')
@@ -79,11 +120,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Determine the max stack height
         const maxStack = d3.max(Object.values(d3.rollup(data, v => v.length, d => d.value))) || 1;
 
-        // Calculate new height for the SVG based on maxStack
+        // Calculate new height for the SVG based on maxStack, ensuring a minimum height
         const paddingTop = 30;
         const paddingBottom = 30;
         const requiredHeightForCubes = maxStack * CUBE_SIZE;
-        const newHeight = requiredHeightForCubes + paddingTop + paddingBottom;
+        let newHeight = requiredHeightForCubes + paddingTop + paddingBottom;
+        newHeight = Math.max(newHeight, MIN_PLOT_HEIGHT); // Ensure minimum height
 
         // Update SVG height
         svg.attr('height', newHeight);
@@ -95,8 +137,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update threshold line y2
         thresholdLine.attr('y2', newHeight - paddingBottom);
 
-        // Update Y-axis
+        // Update Axes
         updateYAxis();
+        updateXAxis(); // Update X-axis position based on new height
+
+        // Update classification regions
+        updateClassificationRegions();
 
 
         const cubeGroups = svg.selectAll('.cube-group').data(data, d => d.id);
@@ -185,6 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
             currentThreshold = Math.max(X_DOMAIN[0], Math.min(X_DOMAIN[1], index));
             updateThresholdLine();
             updateFeedback();
+            updateClassificationRegions(); // Update regions on drag
         });
 
     svg.call(drag); // Allow dragging anywhere on the SVG
@@ -214,6 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         renderCubes(positionedData);
         updateThresholdLine();
         updateFeedback();
+        updateClassificationRegions(); // Initial update for regions
     }
 
     // --- Sliders and Buttons (adapted for new X_DOMAIN) ---
