@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', () => {
         .range([50, width - 50])
         .padding(0);
 
-    const yScale = d3.scaleLinear();
+    // Change to a scaleBand for the y-axis
+    const yScale = d3.scaleBand();
 
     let currentMeanA = Math.floor(X_DOMAIN[1] * 0.25);
     let currentSpreadA = 3;
@@ -38,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
             let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
             let value = Math.round(mean + z * stdDev);
             value = Math.max(X_DOMAIN[0], Math.min(X_DOMAIN[1] - 1, value));
-
             data.push({ id: `${className}-${i}`, value: value, class: className });
         }
         return data;
@@ -53,41 +53,30 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const stackIndex = valueCounts[value];
             valueCounts[value]++;
-
-            return { ...d, x: xScale(value), y: stackIndex, originalY: -50 };
+            return { ...d, x: xScale(value), y: stackIndex };
         });
     }
 
     const blueRegion = svg.append('rect')
         .attr('id', 'blue-region')
         .attr('fill', 'var(--color-class-a)')
-        .attr('fill-opacity', 0.2);
+        .attr('fill-opacity', 0.1);
 
     const redRegion = svg.append('rect')
         .attr('id', 'red-region')
         .attr('fill', 'var(--color-class-b)')
-        .attr('fill-opacity', 0.2);
+        .attr('fill-opacity', 0.1);
 
     function updateClassificationRegions() {
         const currentSvgHeight = svg.attr('height');
         const currentSvgWidth = svg.attr('width');
         const thresholdX = xScale(currentThreshold) - xScale.padding() * xScale.step() / 2;
 
-        blueRegion
-            .attr('x', 0)
-            .attr('y', 0)
-            .attr('width', thresholdX)
-            .attr('height', currentSvgHeight);
-
-        redRegion
-            .attr('x', thresholdX)
-            .attr('y', 0)
-            .attr('width', currentSvgWidth - thresholdX)
-            .attr('height', currentSvgHeight);
+        blueRegion.attr('x', 0).attr('y', 0).attr('width', thresholdX).attr('height', currentSvgHeight);
+        redRegion.attr('x', thresholdX).attr('y', 0).attr('width', currentSvgWidth - thresholdX).attr('height', currentSvgHeight);
     }
 
-    const xAxisGroup = svg.append('g')
-        .attr('class', 'x-axis');
+    const xAxisGroup = svg.append('g').attr('class', 'x-axis');
 
     function updateXAxis() {
         const currentSvgHeight = svg.attr('height');
@@ -96,35 +85,37 @@ document.addEventListener('DOMContentLoaded', () => {
         xAxisGroup.call(xAxis);
     }
 
-    const yAxisGroup = svg.append('g')
-        .attr('class', 'y-axis')
-        .attr('transform', `translate(40, 0)`);
+    const yAxisGroup = svg.append('g').attr('class', 'y-axis').attr('transform', `translate(40, 0)`);
 
-    function updateYAxis(maxStack) {
-        const tickValues = d3.range(1, (maxStack || 0) + 1);
+    function updateYAxis() {
         const yAxis = d3.axisLeft(yScale)
-            .tickValues(tickValues)
-            .tickFormat(d3.format('d'));
+            .tickFormat(d => d + 1); // Add 1 to the label to show 1-based counting
         yAxisGroup.call(yAxis);
+        yAxisGroup.select(".domain").remove(); // Remove the y-axis line
     }
 
     function renderCubes(data) {
         const maxStack = d3.max(Array.from(d3.rollup(data, v => v.length, d => d.value).values())) || 1;
 
         const paddingTop = 30;
-        const paddingBottom = 30;
+        const paddingBottom = 40; // Increased padding for aesthetics
         const requiredHeightForCubes = maxStack * CUBE_SIZE;
         let newHeight = requiredHeightForCubes + paddingTop + paddingBottom;
         newHeight = Math.max(newHeight, MIN_PLOT_HEIGHT);
 
+        // ** FIX: Make both the SVG and its container dynamic **
         svg.attr('height', newHeight);
+        plotContainer.style('height', `${newHeight}px`).style('transition', 'height 0.5s ease-out');
 
-        yScale.domain([0, maxStack])
-              .range([newHeight - paddingBottom - CUBE_SIZE, newHeight - paddingBottom - (maxStack * CUBE_SIZE) - CUBE_SIZE]);
 
-        thresholdLine.attr('y2', newHeight - paddingBottom);
+        // ** FIX: Update the yScale using scaleBand **
+        yScale.domain(d3.range(maxStack))
+              .range([newHeight - paddingBottom - CUBE_SIZE, paddingTop])
+              .padding(0);
 
-        updateYAxis(maxStack);
+        thresholdLine.attr('y2', newHeight - 30);
+
+        updateYAxis();
         updateXAxis();
         updateClassificationRegions();
 
@@ -132,36 +123,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
         cubeGroups.exit().transition().duration(500).attr('transform', 'scale(0)').remove();
 
-        const enterGroups = cubeGroups.enter().append('g')
-            .attr('class', 'cube-group');
+        const enterGroups = cubeGroups.enter().append('g').attr('class', 'cube-group');
 
-        enterGroups.append('rect')
-            .attr('class', 'cube')
-            .attr('width', CUBE_SIZE)
-            .attr('height', CUBE_SIZE)
-            .attr('rx', CUBE_RADIUS);
-
-        enterGroups.append('circle')
-            .attr('class', 'dot')
-            .attr('cx', CUBE_SIZE / 2)
-            .attr('cy', CUBE_SIZE / 2)
-            .attr('r', DOT_RADIUS);
+        enterGroups.append('rect').attr('class', 'cube').attr('width', CUBE_SIZE).attr('height', CUBE_SIZE).attr('rx', CUBE_RADIUS);
+        enterGroups.append('circle').attr('class', 'dot').attr('cx', CUBE_SIZE / 2).attr('cy', CUBE_SIZE / 2).attr('r', DOT_RADIUS);
 
         const mergedGroups = enterGroups.merge(cubeGroups);
 
-        mergedGroups.transition()
-            .duration(500)
-            .delay((d, i) => i * 5)
-            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`);
+        mergedGroups.transition().duration(500).delay((d, i) => i * 5)
+            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`); // Use the scaleBand for positioning
 
-        mergedGroups.select('.dot')
-            .style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)');
-
-        mergedGroups.classed('misclassified', d => {
-            if (d.class === 'A' && d.value >= currentThreshold) return true;
-            if (d.class === 'B' && d.value < currentThreshold) return true;
-            return false;
-        });
+        mergedGroups.select('.dot').style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)');
+        mergedGroups.classed('misclassified', d => (d.class === 'A' && d.value >= currentThreshold) || (d.class === 'B' && d.value < currentThreshold));
     }
 
     const accuracyScoreSpan = document.getElementById('accuracy-score');
@@ -193,38 +166,29 @@ document.addEventListener('DOMContentLoaded', () => {
         accuracyScoreSpan.textContent = `${metrics.accuracy}%`;
     }
 
-    const thresholdLine = svg.append('line')
-        .attr('class', 'threshold-line')
-        .attr('y1', 30)
-        .attr('y2', initialHeight - 30);
+    const thresholdLine = svg.append('line').attr('class', 'threshold-line').attr('y1', 30).attr('y2', initialHeight - 30);
 
-    const drag = d3.drag()
-        .on('drag', (event) => {
-            const newX = event.x;
-            const eachBand = xScale.step();
-            const index = Math.round((newX - xScale.range()[0]) / eachBand);
-            currentThreshold = Math.max(X_DOMAIN[0], Math.min(X_DOMAIN[1], index));
-            updateThresholdLine();
-            updateFeedback();
-            updateClassificationRegions();
-        });
+    const drag = d3.drag().on('drag', (event) => {
+        const newX = event.x;
+        const eachBand = xScale.step();
+        const index = Math.round((newX - xScale.range()[0]) / eachBand);
+        currentThreshold = Math.max(X_DOMAIN[0], Math.min(X_DOMAIN[1], index));
+        updateThresholdLine();
+        updateFeedback();
+        updateClassificationRegions();
+    });
 
     svg.call(drag);
 
     function updateThresholdLine() {
-         thresholdLine
-            .attr('x1', xScale(currentThreshold) - xScale.padding() * xScale.step() / 2)
-            .attr('x2', xScale(currentThreshold) - xScale.padding() * xScale.step() / 2);
+        const thresholdX = xScale(currentThreshold) - xScale.padding() * xScale.step() / 2;
+        thresholdLine.attr('x1', thresholdX).attr('x2', thresholdX);
     }
 
     function updateFeedback() {
         const metrics = calculateMetrics(allData, currentThreshold);
         updateScoreboardDisplay(metrics);
-        svg.selectAll('.cube-group').classed('misclassified', d => {
-             if (d.class === 'A' && d.value >= currentThreshold) return true;
-             if (d.class === 'B' && d.value < currentThreshold) return true;
-             return false;
-        });
+        svg.selectAll('.cube-group').classed('misclassified', d => (d.class === 'A' && d.value >= currentThreshold) || (d.class === 'B' && d.value < currentThreshold));
     }
 
     function updatePlot() {
@@ -239,7 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const meanASlider = document.getElementById('meanA');
-    meanASlider.max = X_DOMAIN[1] -1;
+    meanASlider.max = X_DOMAIN[1] - 1;
     meanASlider.value = currentMeanA;
     meanASlider.addEventListener('input', (e) => {
         currentMeanA = +e.target.value;
