@@ -10,24 +10,22 @@ document.addEventListener('DOMContentLoaded', () => {
         .attr('height', height);
 
     // Cube and Dot dimensions
-    const cubeSize = 15;
-    const dotRadius = 4;
+    const cubeSize = 15; // Size of the square cube
+    const dotRadius = 4; // Radius of the inner dot
 
     // Scales
     const xScale = d3.scaleLinear()
-        .domain([0, 100]) // Example domain for the feature
+        .domain([0, 50]) // New domain for discrete slots (0-50)
         .range([50, width - 50]); // Padding on sides
 
-    const yScale = d3.scaleLinear()
-        .domain([0, 10]) // Max stack height (will adjust dynamically)
-        .range([height - 30, 30]); // Inverted for SVG, padding on top/bottom
+    let yScale = d3.scaleLinear(); // Will be updated dynamically
 
     // Initial parameters for data generation
-    let currentMeanA = 25;
+    let currentMeanA = 15; // Adjusted for new domain
     let currentSpreadA = 5;
-    let currentMeanB = 75;
+    let currentMeanB = 35; // Adjusted for new domain
     let currentSpreadB = 5;
-    let currentThreshold = 50;
+    let currentThreshold = 25; // Adjusted for new domain
     let allData = []; // Store current data globally
 
     // Variables for Guess & Compare
@@ -39,15 +37,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = [];
         for (let i = 0; i < count; i++) {
             // Generate a random value from a normal distribution
-            // Using Box-Muller transform for simplicity
             let u = 0, v = 0;
-            while(u === 0) u = Math.random(); // Converting [0,1) to (0,1)
+            while(u === 0) u = Math.random();
             while(v === 0) v = Math.random();
             let z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
             let value = mean + z * stdDev;
 
-            // Clamp values to a reasonable range (e.g., 0-100)
-            value = Math.max(0, Math.min(100, value));
+            // Clamp values to a reasonable range (e.g., 0-50 for new domain)
+            value = Math.max(0, Math.min(50, value));
 
             data.push({
                 id: `${className}-${i}`,
@@ -61,25 +58,41 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    // Function to position dots in stacks with jitter
+    // Function to position cubes in precise stacks
     function positionDots(data) {
         // Group data by rounded value for stacking
         const groupedData = d3.group(data, d => Math.round(d.value));
+        let maxStackHeight = 0;
 
         // Calculate positions
         groupedData.forEach(group => {
             group.sort((a, b) => a.value - b.value); // Sort within group for consistent stacking
             group.forEach((d, i) => {
                 // Position the top-left corner of the cube
-                d.x = xScale(d.value) - cubeSize / 2 + (Math.random() - 0.5) * 2; // Centered with subtle jitter
-                d.y = yScale(i + 1) - cubeSize + (Math.random() - 0.5) * 2; // Stack vertically from bottom, subtle jitter
-                d.originalY = -50; // Start above for data drop
+                d.x = xScale(Math.round(d.value)) - cubeSize / 2; // Centered on the integer value
+                d.y = height - 30 - (i + 1) * cubeSize; // Stack vertically from bottom
+                d.originalY = -cubeSize; // Start above for data drop
+            });
+            if (group.length > maxStackHeight) {
+                maxStackHeight = group.length;
+            }
+        });
+
+        // Update yScale domain based on max stack height
+        yScale.domain([0, maxStackHeight + 1]) // +1 for some padding at the top
+              .range([height - 30, 30]); // Inverted for SVG, padding on top/bottom
+
+        // Re-calculate y positions based on updated yScale
+        groupedData.forEach(group => {
+            group.forEach((d, i) => {
+                d.y = yScale(i + 1) - cubeSize; // Stack vertically from bottom
             });
         });
+
         return data;
     }
 
-    // Function to render dots (now cubes with inner dots)
+    // Function to render cubes with inner dots
     function renderDots(data) {
         const dataPoints = svg.selectAll('.data-point')
             .data(data, d => d.id); // Use id for object constancy
@@ -102,7 +115,9 @@ document.addEventListener('DOMContentLoaded', () => {
             .attr('height', cubeSize)
             .attr('fill', 'white')
             .attr('stroke', '#333')
-            .attr('stroke-width', 1);
+            .attr('stroke-width', 1)
+            .attr('rx', 3) // Rounded corners
+            .attr('ry', 3); // Rounded corners
 
         enterDataPoints.append('circle')
             .attr('cx', cubeSize / 2)
@@ -199,7 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
         let maxAccuracy = -1;
 
         // Iterate through all possible integer thresholds
-        for (let t = 0; t <= 100; t += 0.1) { // Check every 0.1 unit for finer granularity
+        for (let t = 0; t <= 50; t += 0.1) { // Adjusted for new domain
             const metrics = calculateMetrics(data, t);
             if (metrics.accuracy > maxAccuracy) {
                 maxAccuracy = metrics.accuracy;
@@ -287,9 +302,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Scenario buttons event listeners
     document.getElementById('easy-separation').addEventListener('click', () => {
-        currentMeanA = 25; currentSpreadA = 5;
-        currentMeanB = 75; currentSpreadB = 5;
-        currentThreshold = 50; // Reset threshold for easy separation
+        currentMeanA = 15; currentSpreadA = 5;
+        currentMeanB = 35; currentSpreadB = 5;
+        currentThreshold = 25; // Reset threshold for easy separation
         meanASlider.value = currentMeanA; meanAValueSpan.textContent = currentMeanA;
         spreadASlider.value = currentSpreadA; spreadAValueSpan.textContent = currentSpreadA;
         meanBSlider.value = currentMeanB; meanBValueSpan.textContent = currentMeanB;
@@ -298,9 +313,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('tricky-overlap').addEventListener('click', () => {
-        currentMeanA = 40; currentSpreadA = 15;
-        currentMeanB = 60; currentSpreadB = 15;
-        currentThreshold = 50; // Reset threshold for tricky overlap
+        currentMeanA = 20; currentSpreadA = 10;
+        currentMeanB = 30; currentSpreadB = 10;
+        currentThreshold = 25; // Reset threshold for tricky overlap
         meanASlider.value = currentMeanA; meanAValueSpan.textContent = currentMeanA;
         spreadASlider.value = currentSpreadA; spreadAValueSpan.textContent = currentSpreadA;
         meanBSlider.value = currentMeanB; meanBValueSpan.textContent = currentMeanB;
@@ -309,10 +324,10 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     document.getElementById('unbalanced-problem').addEventListener('click', () => {
-        currentMeanA = 30; currentSpreadA = 10; // Larger stack
-        currentMeanB = 70; currentSpreadB = 5;  // Smaller stack
+        currentMeanA = 10; currentSpreadA = 8; // Larger stack
+        currentMeanB = 40; currentSpreadB = 3;  // Smaller stack
         // Note: For unbalanced, we might want different counts, but for now, keep 50/50
-        currentThreshold = 50; // Reset threshold
+        currentThreshold = 25; // Reset threshold
         meanASlider.value = currentMeanA; meanAValueSpan.textContent = currentMeanA;
         spreadASlider.value = currentSpreadA; spreadAValueSpan.textContent = currentSpreadA;
         meanBSlider.value = currentMeanB; meanBValueSpan.textContent = currentMeanB;
