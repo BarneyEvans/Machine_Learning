@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Update yScale domain and range
         yScale.domain([0, maxStack])
-              .range([newHeight - paddingBottom - CUBE_SIZE, paddingTop]); // Map 0 to top of first cube, maxStack to top of highest cube
+              .range([newHeight - paddingBottom - CUBE_SIZE, newHeight - paddingBottom - (maxStack * CUBE_SIZE) - CUBE_SIZE]);
 
         // Update threshold line y2
         thresholdLine.attr('y2', newHeight - paddingBottom);
