@@ -9,6 +9,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .attr('width', width)
         .attr('height', height);
 
+    // Cube and Dot dimensions
+    const cubeSize = 15;
+    const dotRadius = 4;
+
     // Scales
     const xScale = d3.scaleLinear()
         .domain([0, 100]) // Example domain for the feature
@@ -66,41 +70,52 @@ document.addEventListener('DOMContentLoaded', () => {
         groupedData.forEach(group => {
             group.sort((a, b) => a.value - b.value); // Sort within group for consistent stacking
             group.forEach((d, i) => {
-                d.x = xScale(d.value) + (Math.random() - 0.5) * 5; // Jitter
-                d.y = yScale(i + 1) + (Math.random() - 0.5) * 5; // Stack vertically with jitter
+                // Position the top-left corner of the cube
+                d.x = xScale(d.value) - cubeSize / 2 + (Math.random() - 0.5) * 2; // Centered with subtle jitter
+                d.y = yScale(i + 1) - cubeSize + (Math.random() - 0.5) * 2; // Stack vertically from bottom, subtle jitter
                 d.originalY = -50; // Start above for data drop
             });
         });
         return data;
     }
 
-    // Function to render dots
+    // Function to render dots (now cubes with inner dots)
     function renderDots(data) {
-        const dots = svg.selectAll('.dot')
+        const dataPoints = svg.selectAll('.data-point')
             .data(data, d => d.id); // Use id for object constancy
 
         // Exit
-        dots.exit()
+        dataPoints.exit()
             .transition().duration(500)
-            .attr('r', 0)
+            .attr('transform', `translate(0, ${height + 50})`)
+            .style('opacity', 0)
             .remove();
 
         // Enter
-        const enterDots = dots.enter().append('circle')
-            .attr('class', d => `dot dot-${d.class.toLowerCase()}`)
-            .attr('r', 5) // Radius of dots
-            .attr('cx', d => d.x)
-            .attr('cy', d => d.originalY) // Start from originalY for animation
-            .style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)')
-            .style('opacity', 0); // Start invisible for data drop
+        const enterDataPoints = dataPoints.enter().append('g')
+            .attr('class', 'data-point')
+            .attr('transform', d => `translate(${d.x}, ${d.originalY})`)
+            .style('opacity', 0);
 
-        // Update (for existing and entering dots)
-        enterDots.merge(dots)
+        enterDataPoints.append('rect')
+            .attr('width', cubeSize)
+            .attr('height', cubeSize)
+            .attr('fill', 'white')
+            .attr('stroke', '#333')
+            .attr('stroke-width', 1);
+
+        enterDataPoints.append('circle')
+            .attr('cx', cubeSize / 2)
+            .attr('cy', cubeSize / 2)
+            .attr('r', dotRadius)
+            .style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)');
+
+        // Update (for existing and entering data points)
+        enterDataPoints.merge(dataPoints)
             .transition()
-            .duration(500) // Data drop animation duration
-            .delay((d, i) => i * 5) // Staggered delay for data drop
-            .attr('cx', d => d.x)
-            .attr('cy', d => d.y)
+            .duration(1000) // Data drop animation duration
+            .delay((d, i) => i * 10) // Staggered delay for data drop
+            .attr('transform', d => `translate(${d.x}, ${d.y})`)
             .style('opacity', 1)
             .attr('class', d => {
                 let isMisclassified = false;
@@ -109,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else if (d.class === 'B' && d.value < currentThreshold) {
                     isMisclassified = true; // Class B dot classified as A
                 }
-                return `dot dot-${d.class.toLowerCase()} ${isMisclassified ? 'misclassified' : ''}`;
+                return `data-point ${isMisclassified ? 'misclassified' : ''}`;
             });
     }
 
