@@ -7,7 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set a fixed width and height for the plot area.
     const width = 700; // Fixed width for 30 units + padding
     const height = 310; // Fixed height for 12 stacks + axes
-    const MAX_STACK_CAP = 12; // Cap the maximum stack height
+    const MAX_STACK_CAP = 15; // Cap the maximum stack height
     const X_DOMAIN = [0, 30]; // Fixed x-axis from 0 to 30
 
     const svg = plotContainer.append('svg')
