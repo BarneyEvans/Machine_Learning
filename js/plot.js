@@ -1,4 +1,3 @@
-
 // js/plot.js
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +17,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const yScale = d3.scaleLinear()
         .domain([0, 10]) // Max stack height (will adjust dynamically)
         .range([height - 30, 30]); // Inverted for SVG, padding on top/bottom
+
+    // Initial parameters for data generation
+    let currentMeanA = 25;
+    let currentSpreadA = 5;
+    let currentMeanB = 75;
+    let currentSpreadB = 5;
+    let currentThreshold = 50;
 
     // Function to generate data for a class
     function generateClassData(mean, stdDev, count, className) {
@@ -63,18 +69,16 @@ document.addEventListener('DOMContentLoaded', () => {
         return data;
     }
 
-    // Initial "Easy Separation" data
-    let classAData = generateClassData(25, 5, 50, 'A');
-    let classBData = generateClassData(75, 5, 50, 'B');
-    let allData = positionDots([...classAData, ...classBData]);
-
     // Render dots
     function renderDots(data) {
         const dots = svg.selectAll('.dot')
             .data(data, d => d.id); // Use id for object constancy
 
         // Exit
-        dots.exit().remove();
+        dots.exit()
+            .transition().duration(500)
+            .attr('r', 0)
+            .remove();
 
         // Enter
         const enterDots = dots.enter().append('circle')
@@ -95,33 +99,127 @@ document.addEventListener('DOMContentLoaded', () => {
             .style('opacity', 1);
     }
 
-    renderDots(allData);
+    // Threshold line
+    const thresholdLine = svg.append('line')
+        .attr('class', 'threshold-line')
+        .attr('x1', xScale(currentThreshold))
+        .attr('y1', 30)
+        .attr('x2', xScale(currentThreshold))
+        .attr('y2', height - 30)
+        .style('stroke', 'var(--color-threshold)')
+        .style('stroke-width', 3);
 
-    // Add a simple x-axis for now
+    // Draggable threshold line
+    const drag = d3.drag()
+        .on('drag', (event) => {
+            const newX = event.x;
+            const clampedX = Math.max(xScale.range()[0], Math.min(xScale.range()[1], newX));
+            currentThreshold = xScale.invert(clampedX);
+            thresholdLine
+                .attr('x1', clampedX)
+                .attr('x2', clampedX);
+        });
+
+    thresholdLine.call(drag);
+
+    // Function to update the plot based on current parameters
+    function updatePlot() {
+        let classAData = generateClassData(currentMeanA, currentSpreadA, 50, 'A');
+        let classBData = generateClassData(currentMeanB, currentSpreadB, 50, 'B');
+        let allData = positionDots([...classAData, ...classBData]);
+        renderDots(allData);
+
+        // Update threshold line position
+        thresholdLine
+            .attr('x1', xScale(currentThreshold))
+            .attr('x2', xScale(currentThreshold));
+    }
+
+    // Initial render
+    updatePlot();
+
+    // Add a simple x-axis
     const xAxis = d3.axisBottom(xScale);
     svg.append('g')
         .attr('class', 'x-axis')
         .attr('transform', `translate(0, ${height - 30})`)
         .call(xAxis);
 
-    // Placeholder for threshold line
-    svg.append('line')
-        .attr('class', 'threshold-line')
-        .attr('x1', xScale(50))
-        .attr('y1', 30)
-        .attr('x2', xScale(50))
-        .attr('y2', height - 30)
-        .style('stroke', 'var(--color-threshold)')
-        .style('stroke-width', 3);
+    // Slider event listeners
+    const meanASlider = document.getElementById('meanA');
+    const meanAValueSpan = document.getElementById('meanA-value');
+    meanASlider.addEventListener('input', (event) => {
+        currentMeanA = +event.target.value;
+        meanAValueSpan.textContent = currentMeanA;
+        updatePlot();
+    });
 
-    // Resize listener (basic)
+    const spreadASlider = document.getElementById('spreadA');
+    const spreadAValueSpan = document.getElementById('spreadA-value');
+    spreadASlider.addEventListener('input', (event) => {
+        currentSpreadA = +event.target.value;
+        spreadAValueSpan.textContent = currentSpreadA;
+        updatePlot();
+    });
+
+    const meanBSlider = document.getElementById('meanB');
+    const meanBValueSpan = document.getElementById('meanB-value');
+    meanBSlider.addEventListener('input', (event) => {
+        currentMeanB = +event.target.value;
+        meanBValueSpan.textContent = currentMeanB;
+        updatePlot();
+    });
+
+    const spreadBSlider = document.getElementById('spreadB');
+    const spreadBValueSpan = document.getElementById('spreadB-value');
+    spreadBSlider.addEventListener('input', (event) => {
+        currentSpreadB = +event.target.value;
+        spreadBValueSpan.textContent = currentSpreadB;
+        updatePlot();
+    });
+
+    // Scenario buttons event listeners
+    document.getElementById('easy-separation').addEventListener('click', () => {
+        currentMeanA = 25; currentSpreadA = 5;
+        currentMeanB = 75; currentSpreadB = 5;
+        currentThreshold = 50; // Reset threshold for easy separation
+        meanASlider.value = currentMeanA; meanAValueSpan.textContent = currentMeanA;
+        spreadASlider.value = currentSpreadA; spreadAValueSpan.textContent = currentSpreadA;
+        meanBSlider.value = currentMeanB; meanBValueSpan.textContent = currentMeanB;
+        spreadBSlider.value = currentSpreadB; spreadBValueSpan.textContent = currentSpreadB;
+        updatePlot();
+    });
+
+    document.getElementById('tricky-overlap').addEventListener('click', () => {
+        currentMeanA = 40; currentSpreadA = 15;
+        currentMeanB = 60; currentSpreadB = 15;
+        currentThreshold = 50; // Reset threshold for tricky overlap
+        meanASlider.value = currentMeanA; meanAValueSpan.textContent = currentMeanA;
+        spreadASlider.value = currentSpreadA; spreadAValueSpan.textContent = currentSpreadA;
+        meanBSlider.value = currentMeanB; meanBValueSpan.textContent = currentMeanB;
+        spreadBSlider.value = currentSpreadB; spreadBValueSpan.textContent = currentSpreadB;
+        updatePlot();
+    });
+
+    document.getElementById('unbalanced-problem').addEventListener('click', () => {
+        currentMeanA = 30; currentSpreadA = 10; // Larger stack
+        currentMeanB = 70; currentSpreadB = 5;  // Smaller stack
+        // Note: For unbalanced, we might want different counts, but for now, keep 50/50
+        currentThreshold = 50; // Reset threshold
+        meanASlider.value = currentMeanA; meanAValueSpan.textContent = currentMeanA;
+        spreadASlider.value = currentSpreadA; spreadAValueSpan.textContent = currentSpreadA;
+        meanBSlider.value = currentMeanB; meanBValueSpan.textContent = currentMeanB;
+        spreadBSlider.value = currentSpreadB; spreadBValueSpan.textContent = currentSpreadB;
+        updatePlot();
+    });
+
+    // Resize listener
     window.addEventListener('resize', () => {
         const newWidth = plotContainer.node().clientWidth;
         svg.attr('width', newWidth);
         xScale.range([50, newWidth - 50]);
         svg.select('.x-axis').call(xAxis);
         // Re-render dots to adjust positions
-        allData = positionDots(allData.map(d => ({...d, value: d.value}))); // Re-calculate positions
-        renderDots(allData);
+        updatePlot(); // Re-calculate positions and render
     });
 });
