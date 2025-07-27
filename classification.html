@@ -12,65 +12,66 @@
     </header>
     <main>
             <div id="plot-container"></div>
-            <div id="controls-container">
-                <div class="control-group">
-                    <h3>Class A Controls (Blue)</h3>
-                    <label for="meanA">Mean A:</label>
-                    <input type="range" id="meanA" min="0" max="29" value="25">
-                    <span id="meanA-value">25</span>
+            <div id="sidebar-container">
+                <div id="controls-container">
+                    <div class="control-group">
+                        <h3>Class A Controls (Blue)</h3>
+                        <label for="meanA">Mean A:</label>
+                        <input type="range" id="meanA" min="0" max="29" value="25">
+                        <span id="meanA-value">25</span>
 
-                    <label for="spreadA">Spread A:</label>
-                    <input type="range" id="spreadA" min="1" max="20" value="5">
-                    <span id="spreadA-value">5</span>
+                        <label for="spreadA">Spread A:</label>
+                        <input type="range" id="spreadA" min="1" max="20" value="5">
+                        <span id="spreadA-value">5</span>
+                    </div>
+
+                    <div class="control-group">
+                        <h3>Class B Controls (Red)</h3>
+                        <label for="meanB">Mean B:</label>
+                        <input type="range" id="meanB" min="0" max="29" value="75">
+                        <span id="meanB-value">75</span>
+
+                        <label for="spreadB">Spread B:</label>
+                        <input type="range" id="spreadB" min="1" max="20" value="5">
+                        <span id="spreadB-value">5</span>
+                    </div>
+
+                    <div class="scenario-buttons">
+                        <h3>Scenarios</h3>
+                        <button id="easy-separation">Easy Separation</button>
+                        <button id="tricky-overlap">Tricky Overlap</button>
+                        <button id="unbalanced-problem">Unbalanced Problem</button>
+                    </div>
+
+                    <div class="guess-compare-buttons">
+                        <h3>Guess & Compare</h3>
+                        <button id="lock-guess">Lock Guess</button>
+                        <button id="show-optimal">Show Optimal</button>
+                    </div>
                 </div>
-
-                <div class="control-group">
-                    <h3>Class B Controls (Red)</h3>
-                    <label for="meanB">Mean B:</label>
-                    <input type="range" id="meanB" min="0" max="29" value="75">
-                    <span id="meanB-value">75</span>
-
-                    <label for="spreadB">Spread B:</label>
-                    <input type="range" id="spreadB" min="1" max="20" value="5">
-                    <span id="spreadB-value">5</span>
-                </div>
-
-                <div class="scenario-buttons">
-                    <h3>Scenarios</h3>
-                    <button id="easy-separation">Easy Separation</button>
-                    <button id="tricky-overlap">Tricky Overlap</button>
-                    <button id="unbalanced-problem">Unbalanced Problem</button>
-                </div>
-
-                <div class="guess-compare-buttons">
-                    <h3>Guess & Compare</h3>
-                    <button id="lock-guess">Lock Guess</button>
-                    <button id="show-optimal">Show Optimal</button>
+                <div id="scoreboard-container">
+                    <div class="score-item">
+                        <span class="score-label">Blue Cubes Correctly Sorted:</span>
+                        <span id="tn-score" class="score-value">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">Red Cubes Correctly Sorted:</span>
+                        <span id="tp-score" class="score-value">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">Blue Cubes Missed:</span>
+                        <span id="fn-score" class="score-value">0</span>
+                    </div>
+                    <div class="score-item">
+                        <span class="score-label">Red Cubes Mistaken:</span>
+                        <span id="fp-score" class="score-value">0</span>
+                    </div>
+                    <div class="score-item full-width accuracy-item">
+                        <span class="score-label">Overall Accuracy:</span>
+                        <span id="accuracy-score" class="score-value">0%</span>
+                    </div>
                 </div>
             </div>
-            <div id="scoreboard-container">
-                <div class="score-item">
-                    <span class="score-label">Blue Cubes Correctly Sorted:</span>
-                    <span id="tn-score" class="score-value">0</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Red Cubes Correctly Sorted:</span>
-                    <span id="tp-score" class="score-value">0</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Blue Cubes Missed:</span>
-                    <span id="fn-score" class="score-value">0</span>
-                </div>
-                <div class="score-item">
-                    <span class="score-label">Red Cubes Mistaken:</span>
-                    <span id="fp-score" class="score-value">0</span>
-                </div>
-                <div class="score-item full-width accuracy-item">
-                    <span class="score-label">Overall Accuracy:</span>
-                    <span id="accuracy-score" class="score-value">0%</span>
-                </div>
-            </div>
-        </main>
     <footer>
         <p>&copy; 2025 Barney's Tutoring</p>
     </footer>
