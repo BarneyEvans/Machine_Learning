@@ -13,7 +13,34 @@
     <main>
             <div id="plot-container"></div>
             <div id="controls-container">
-                <!-- Sliders and buttons will go here -->
+                <div class="control-group">
+                    <h3>Class A Controls (Blue)</h3>
+                    <label for="meanA">Mean A:</label>
+                    <input type="range" id="meanA" min="0" max="100" value="25">
+                    <span id="meanA-value">25</span>
+
+                    <label for="spreadA">Spread A:</label>
+                    <input type="range" id="spreadA" min="1" max="20" value="5">
+                    <span id="spreadA-value">5</span>
+                </div>
+
+                <div class="control-group">
+                    <h3>Class B Controls (Red)</h3>
+                    <label for="meanB">Mean B:</label>
+                    <input type="range" id="meanB" min="0" max="100" value="75">
+                    <span id="meanB-value">75</span>
+
+                    <label for="spreadB">Spread B:</label>
+                    <input type="range" id="spreadB" min="1" max="20" value="5">
+                    <span id="spreadB-value">5</span>
+                </div>
+
+                <div class="scenario-buttons">
+                    <h3>Scenarios</h3>
+                    <button id="easy-separation">Easy Separation</button>
+                    <button id="tricky-overlap">Tricky Overlap</button>
+                    <button id="unbalanced-problem">Unbalanced Problem</button>
+                </div>
             </div>
             <div id="scoreboard-container">
                 <!-- Scoreboard will go here -->
