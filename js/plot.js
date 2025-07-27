@@ -20,7 +20,6 @@ document.addEventListener('DOMContentLoaded', () => {
         .range([50, width - 50])
         .padding(0);
 
-    // Change to a scaleBand for the y-axis
     const yScale = d3.scaleBand();
 
     let currentMeanA = Math.floor(X_DOMAIN[1] * 0.25);
@@ -89,28 +88,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updateYAxis() {
         const yAxis = d3.axisLeft(yScale)
-            .tickFormat(d => d + 1); // Add 1 to the label to show 1-based counting
+            .tickFormat(d => d + 1);
         yAxisGroup.call(yAxis);
-        yAxisGroup.select(".domain").remove(); // Remove the y-axis line
+        yAxisGroup.select(".domain").remove();
     }
 
     function renderCubes(data) {
         const maxStack = d3.max(Array.from(d3.rollup(data, v => v.length, d => d.value).values())) || 1;
 
         const paddingTop = 30;
-        const paddingBottom = 40; // Increased padding for aesthetics
+        const paddingBottom = 40;
         const requiredHeightForCubes = maxStack * CUBE_SIZE;
         let newHeight = requiredHeightForCubes + paddingTop + paddingBottom;
         newHeight = Math.max(newHeight, MIN_PLOT_HEIGHT);
 
-        // ** FIX: Make both the SVG and its container dynamic **
         svg.attr('height', newHeight);
         plotContainer.style('height', `${newHeight}px`).style('transition', 'height 0.5s ease-out');
 
-
-        // ** FIX: Update the yScale using scaleBand **
-        yScale.domain(d3.range(maxStack))
-              .range([newHeight - paddingBottom - CUBE_SIZE, paddingTop])
+        // ** FIX: Correctly define the range to eliminate gaps **
+        const yStackHeight = maxStack * CUBE_SIZE;
+        yScale.domain(d3.range(maxStack).reverse()) // Reverse domain to stack from bottom-up
+              .range([paddingTop, paddingTop + yStackHeight])
               .padding(0);
 
         thresholdLine.attr('y2', newHeight - 30);
@@ -131,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const mergedGroups = enterGroups.merge(cubeGroups);
 
         mergedGroups.transition().duration(500).delay((d, i) => i * 5)
-            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`); // Use the scaleBand for positioning
+            .attr('transform', d => `translate(${d.x}, ${yScale(d.y)})`);
 
         mergedGroups.select('.dot').style('fill', d => d.class === 'A' ? 'var(--color-class-a)' : 'var(--color-class-b)');
         mergedGroups.classed('misclassified', d => (d.class === 'A' && d.value >= currentThreshold) || (d.class === 'B' && d.value < currentThreshold));
