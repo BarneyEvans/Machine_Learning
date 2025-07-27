@@ -58,18 +58,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Positions cubes and filters out any that exceed the MAX_STACK_CAP
     function positionCubes(data) {
         const valueCounts = {};
-        const positioned = data.map(d => {
+        const positioned = [];
+        data.forEach(d => {
             const value = d.value;
             if (!valueCounts[value]) {
                 valueCounts[value] = 0;
             }
-            const stackIndex = valueCounts[value];
-            valueCounts[value]++;
-            return { ...d, x: xScale(value), y: stackIndex };
+            if (valueCounts[value] < MAX_STACK_CAP) { // Only add if stack is not full
+                const stackIndex = valueCounts[value];
+                valueCounts[value]++;
+                positioned.push({ ...d, x: xScale(value), y: stackIndex });
+            }
         });
-        
-        // Filter out cubes that are taller than the cap
-        return positioned.filter(d => d.y < MAX_STACK_CAP);
+        return positioned;
     }
 
     // --- Region and Axes ---
