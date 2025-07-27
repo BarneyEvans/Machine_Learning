@@ -5,20 +5,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const width = plotContainer.node().clientWidth;
     const initialHeight = 400;
     const MIN_PLOT_HEIGHT = 400;
-    const MAX_STACK_CAP = 30; // Cap the maximum stack height
+    const MAX_STACK_CAP = 12; // Cap the maximum stack height
 
     const svg = plotContainer.append('svg')
         .attr('width', width)
-        .attr('height', initialHeight);
+        .attr('height', 310); // Fixed height for 12 cubes stack
 
     const CUBE_SIZE = 20;
     const CUBE_RADIUS = 4;
     const DOT_RADIUS = 5;
-    const X_DOMAIN = [0, Math.floor((width - 100) / CUBE_SIZE)];
+    const X_DOMAIN = [0, 30]; // Fixed x-axis length of 30 units
 
     const xScale = d3.scaleBand()
         .domain(d3.range(X_DOMAIN[0], X_DOMAIN[1]))
-        .range([50, width - 50])
+        .range([50, 650]) // Adjusted range for fixed width
         .padding(0);
 
     const yScale = d3.scaleLinear(); // A simple linear scale for the axis
@@ -46,15 +46,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function positionCubes(data) {
         const valueCounts = {};
-        return data.map(d => {
+        const positioned = [];
+        data.forEach(d => {
             const value = d.value;
             if (!valueCounts[value]) {
                 valueCounts[value] = 0;
             }
-            const stackIndex = valueCounts[value];
-            valueCounts[value]++;
-            return { ...d, x: xScale(value), y: stackIndex }; // y is the 0-based stack index
+            if (valueCounts[value] < MAX_STACK_CAP) { // Only add if stack is not full
+                const stackIndex = valueCounts[value];
+                valueCounts[value]++;
+                positioned.push({ ...d, x: xScale(value), y: stackIndex });
+            }
         });
+        return positioned;
     }
 
     const blueRegion = svg.append('rect').attr('id', 'blue-region').attr('fill', 'var(--color-class-a)').attr('fill-opacity', 0.2);
@@ -90,18 +94,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const paddingTop = 30;
         const paddingBottom = 40;
-        const requiredHeightForCubes = maxStack * CUBE_SIZE;
-        let newHeight = requiredHeightForCubes + paddingTop + paddingBottom;
-        newHeight = Math.max(newHeight, MIN_PLOT_HEIGHT);
-
-        svg.attr('height', newHeight);
-        plotContainer.style('height', `${newHeight}px`).style('transition', 'height 0.5s ease-out');
+        const newHeight = 310; // Fixed height
 
         // Define the y-axis scale to perfectly center the labels
         yScale.domain([1, maxStack])
               .range([(newHeight - paddingBottom) - (0.5 * CUBE_SIZE), (newHeight - paddingBottom) - (maxStack - 0.5) * CUBE_SIZE]);
-
-        thresholdLine.attr('y2', newHeight - 30);
 
         updateYAxis(maxStack);
         updateXAxis();
@@ -157,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         accuracyScoreSpan.textContent = `${metrics.accuracy}%`;
     }
 
-    const thresholdLine = svg.append('line').attr('class', 'threshold-line').attr('y1', 30).attr('y2', initialHeight - 30);
+    const thresholdLine = svg.append('line').attr('class', 'threshold-line').attr('y1', 30).attr('y2', 280);
 
     const drag = d3.drag().on('drag', (event) => {
         const newX = event.x;
